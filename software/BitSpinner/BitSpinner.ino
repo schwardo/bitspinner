@@ -99,6 +99,20 @@ void setup()
   AdaEncoder::addEncoder('a', encoderPinA, encoderPinB);
 }
 
+void loop() 
+{
+  read_encoder_push();
+  read_encoder_turn();
+  update_counter();
+
+  update_binary_display(counter);
+  if (digitalRead(hexSwitch) == LOW) {
+    update_hex_display(counter);
+  } else {
+    update_dec_display(counter);
+  }
+}
+
 void read_encoder_turn() {
   int8_t clicks = 0;
   if (AdaEncoder::genie(&clicks, NULL) != NULL) {
@@ -114,6 +128,7 @@ void read_encoder_push() {
   static int lastButtonState = LOW;
   static long lastDebounceTime = 0;
 
+  // TODO: would the hex/dec display be brighter if we used PinChangeInt here?
   bool reading = digitalRead(encoderPush);
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
@@ -132,17 +147,16 @@ void update_counter() {
   
   if (counting) {
     subcounter += velocity;
+    counter += subcounter / 250;
     if (subcounter > 250) {
-      counter += subcounter / 250;
       subcounter = subcounter % 250;
     }
     if (subcounter < -250) {
-      counter -= subcounter / -250;
       subcounter = -(-subcounter % 250);
     }
   }
-  if (counter > 1023) {
-    counter %= 1024;
+  while (counter > 1023) {
+    counter -= 1024;
   }
   while (counter < 0) {
     counter += 1024;
@@ -156,10 +170,14 @@ void update_binary_display(int number) {
     // Pull latch LOW to send data
     digitalWrite(latchPin, LOW);
     shiftOut(dataPin, clockPin, LSBFIRST, number >> 2);
-    digitalWrite(latchPin, HIGH);
     // Pull latch HIGH to stop sending data
-    analogWrite(binaryDigit9, (number & 0x02) ? 128 : LOW);
-    analogWrite(binaryDigit10, (number & 0x01) ? 128 : LOW);
+    digitalWrite(latchPin, HIGH);
+    // It would be nice if we could PWM these to match the brightness
+    // of the shift-register LEDs.  Unfortunately, this chip only
+    // supports PWM on pins 3, 5, 6, 9, 10, and 11.
+    // TODO: fix this in the next rev of the board.
+    digitalWrite(binaryDigit9, (number & 0x02) ? HIGH : LOW);
+    digitalWrite(binaryDigit10, (number & 0x01) ? HIGH : LOW);
     lastNumber = number;
   }
 }
@@ -210,19 +228,5 @@ void update_hex_display(int n) {
   digitalWrite(digitSelect4, HIGH);
   delay(digitDelayMs);
   digitalWrite(digitSelect4, LOW);
-}
-
-void loop() 
-{
-  read_encoder_push();
-  read_encoder_turn();
-  update_counter();
-
-  update_binary_display(counter);
-  if (digitalRead(hexSwitch) == LOW) {
-    update_hex_display(counter);
-  } else {
-    update_dec_display(counter);
-  }
 }
 
