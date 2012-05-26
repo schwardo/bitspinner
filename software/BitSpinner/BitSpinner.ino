@@ -147,12 +147,13 @@ void update_counter() {
   
   if (counting) {
     subcounter += velocity;
-    counter += subcounter / 250;
-    if (subcounter > 250) {
-      subcounter = subcounter % 250;
+    while (subcounter > 250) {
+      subcounter -= 250;
+      counter++;
     }
-    if (subcounter < -250) {
-      subcounter = -(-subcounter % 250);
+    while (subcounter < -250) {
+      subcounter += 250;
+      counter--;
     }
   }
   while (counter > 1023) {
